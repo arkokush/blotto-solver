@@ -1,0 +1,58 @@
+"""Solve a finite two-player zero-sum matrix game by linear programming."""
+
+from __future__ import annotations
+
+import numpy as np
+from scipy.optimize import linprog
+
+def solve_zero_sum(A: np.ndarray) -> tuple[float, np.ndarray, np.ndarray]:
+    """Minimax solution of the zero-sum game with payoff matrix A.
+
+    The row player picks a row and receives A[i, j]; the column player picks a
+    column and pays it. The row player maximizes, the column player minimizes.
+
+    Args:
+        A: payoff matrix of shape (m, n); entries may be any sign.
+
+    Returns:
+        (value, p, q): the game value, the row player's optimal mixed strategy p
+        (length m), and the column player's optimal mixed strategy q (length n).
+        p and q are nonnegative and each sums to 1, and they satisfy
+            min_j (p @ A)[j] = value = max_i (A @ q)[i]
+        up to solver tolerance.
+    """
+
+    #P1
+    m,n = A.shape
+
+    c = np.append(np.zeros(m), -1)
+    A_ub = np.hstack([-A.T, np.ones((n,1))])
+    b_ub = np.zeros(n)
+    A_eq = np.append(np.ones(m),0).reshape(1,-1)
+    b_eq = np.array([1.0])
+    bounds = [(0, None)] * m + [(None, None)]
+    res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method="highs")
+    if res.status != 0:
+        raise RuntimeError(f"row LP failed: {res.message}")
+
+    p, value = res.x[:m], res.x[m]
+
+    #P2
+    c = np.append(np.zeros(n), 1)
+    A_ub = np.hstack([A, -np.ones((m,1))])
+    b_ub = np.zeros(m)
+    A_eq = np.append(np.ones(n),0).reshape(1,-1)
+    b_eq = np.array([1.0])
+    bounds = [(0, None)] * n + [(None, None)]
+    res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method="highs")
+
+    if res.status != 0:
+        raise RuntimeError(f"row LP failed: {res.message}")
+
+    q, w = res.x[:n], res.x[n]
+
+    if abs(value - w) > 1e-6:
+        raise RuntimeError(f"minimax mismatch: v={value}, w={w}")
+
+    return value, p, q
+
