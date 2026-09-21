@@ -5,6 +5,8 @@ enough to solve directly, so the double oracle output can be checked against it.
 """
 
 from __future__ import annotations
+from lp_solver import solve_zero_sum
+from payoff import GameConfig, enumerate_allocations, payoff_matrix
 
 from dataclasses import dataclass
 
@@ -26,5 +28,8 @@ def solve_full_game(cfg: GameConfig, objective: str = "margin") -> FullSolution:
 
     Only feasible when cfg.n_pure_strategies is small (hundreds, maybe a few thousand).
     """
-    # STAGE 3: implement using enumerate_allocations, payoff_matrix, solve_zero_sum.
-    raise NotImplementedError
+    allocs = enumerate_allocations(cfg)
+    A = payoff_matrix(allocs,allocs,cfg,objective)
+    value,p,q = solve_zero_sum(A)
+
+    return FullSolution(value=value, allocations=allocs, row_probs=p, col_probs=q)

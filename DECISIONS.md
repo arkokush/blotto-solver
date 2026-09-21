@@ -152,3 +152,16 @@ parameters, so small games are just different `GameConfig`s.
   |v − w| < 1e-6 (the minimax theorem / LP strong duality) as a built-in bug
   detector. 23 tests pass, including rectangular games and an all-negative
   matrix.
+- **Stage 3 (ground truth), 2026-09-21.** Tiny game (3 towers, 6 soldiers, 28
+  allocations) solved by full LP. 8 tests pass.
+  - Margin: value 0 (as symmetry requires). The equilibrium mixes 17 of 28
+    allocations; the most frequent is [2, 0, 4] at 19%.
+  - Security: value 3.547, i.e. I can guarantee 3.55 expected points out of 6
+    tower points plus bonuses, against an opponent trying to hold me down. The
+    equilibrium mixes 13 allocations; [2, 0, 4] is played 44% of the time.
+  - Every allocation played scores exactly the value against the opponent's
+    equilibrium mix, and no allocation scores more (indifference + no
+    profitable deviation, checked numerically).
+  - Caveat: the equilibrium *value* is unique, but the equilibrium *strategy*
+    may not be. The LP returns one optimal vertex, so individual probabilities
+    should not be over-interpreted.
