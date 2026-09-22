@@ -165,3 +165,25 @@ parameters, so small games are just different `GameConfig`s.
   - Caveat: the equilibrium *value* is unique, but the equilibrium *strategy*
     may not be. The LP returns one optimal vertex, so individual probabilities
     should not be over-interpreted.
+- **Stage 4 (DP best response), 2026-09-22.** Two parts.
+  - *Precomputation.* The opponent's mix is collapsed into two tables:
+    `tower_value[i, a]` (expected weighted points from a units on tower i) and
+    `pair[i, a, b]` (expected weighted bonus terms for towers i, i+1). The
+    weights, tower values and bonus are folded in, so the DP is
+    objective-agnostic and one implementation serves all three weight settings.
+    Key subtlety: P(win both towers) ≠ P(win i)·P(win i+1), because the
+    opponent's towers come from the same allocation; the joint probabilities are
+    summed over their support directly.
+  - *DP.* State f(i, r, p) = best total from towers i..n−1 with r units left and
+    p units on tower i−1. Carrying p is what makes the adjacency bonus
+    expressible: the pair (i−1, i) is paid when tower i is chosen. Recurrence
+    f(i, r, p) = max over a ≤ r of tower_value[i, a] + pair[i−1, p, a] +
+    f(i+1, r−a, a); base f(n, 0, ·) = 0 and −∞ for leftover units; tower 0 pays
+    no pair term. An argmax table is stored and walked forward to rebuild the
+    allocation.
+  - Cost n·U³: about 10⁵ operations at units of 5, and ~10⁷ at 1-soldier
+    resolution, measured at 2.0 s per call. Fast enough for the final
+    exploitability check with no vectorization needed.
+  - 57 tests pass: matches brute force on 3-, 4- and 5-tower games for all three
+    weight settings, against both pure and mixed opponents, and beats 200 random
+    allocations at full size.

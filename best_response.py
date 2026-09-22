@@ -29,8 +29,69 @@ def best_response(
         (x, value): an optimal allocation (ints, length n_towers, sum n_units)
         and its expected utility sum_k opp_probs[k] * utility(x, opp_allocs[k], cfg, w).
     """
-    # STAGE 4: implement the DP.
-    raise NotImplementedError
+    tower_value, pair = _build_tables(opp_allocs, opp_probs, cfg, w)
+    n, U = cfg.n_towers, cfg.n_units
+    f = np.full((n + 1, U + 1, U + 1), -np.inf)
+    choice = np.full((n, U + 1, U + 1), -1, dtype=int)
+    f[n, 0, :] = 0.0
+
+    for i in range(n - 1, -1, -1):
+        for r in range(U + 1):
+            for p in range(U + 1):
+                best_val, best_a = -np.inf, -1
+
+                for a in range(r + 1):
+                    val = tower_value[i,a] + f[i + 1, r - a, a]
+
+                    if i != 0:
+                        val += pair[i - 1,p,a]
+
+                    if val > best_val:
+                        best_val, best_a = val, a
+
+                f[i, r, p] = best_val
+                choice[i,r,p] = best_a
+
+    x = np.zeros(n, dtype=int)
+    r, p = U, 0
+    for i in range(n):
+        a = choice[i, r, p]
+        x[i] = a
+        r -= a
+        p = a
+
+    return x, f[0, U, 0] + w.const
+
+
+
+
+def _build_tables(opp_allocs: np.ndarray, opp_probs: np.ndarray, cfg: GameConfig, w: Weights):
+    """Returns (tower_value, pair):
+      tower_value[i, a]     expected weighted tower term for a units on tower i
+      pair[i, a, b]         expected weighted bonus terms for pair (i, i+1)
+    """
+    n, U = cfg.n_towers, cfg.n_units
+    y, pi = np.asarray(opp_allocs), np.asarray(opp_probs)
+    tower_value = np.zeros((n, U + 1))
+    pair = np.zeros((n-1,U+1,U+1))
+
+    for i in range(n):
+        v = cfg.tower_values[i]
+        for a in range(U+1):
+            W = (pi * (y[:,i] < a)).sum()
+            T = (pi * (y[:,i] == a)).sum()
+            tower_value[i,a] = w.tower * v * (W + T/2)
+
+            if i == n - 1:
+                continue
+
+            for b in range(U+1):
+                WW = (pi * (y[:,i] < a) * (y[:,i + 1] < b)).sum()
+                LL = (pi * (y[:,i] > a) * (y[:,i + 1] > b)).sum()
+                pair[i,a,b] = cfg.bonus * (w.own_bonus * WW + w.opp_bonus * LL)
+
+    return tower_value, pair
+
 
 
 def brute_force_best_response(
