@@ -41,12 +41,19 @@ def solve_zero_sum(A: np.ndarray, use_dual: bool = False) -> tuple[float, np.nda
         # The column player's LP is the dual of the row player's, so q is the vector
         # of shadow prices on the column constraints. This halves the LP work, which
         # matters once the restricted game has hundreds of strategies.
+        #
+        # The duals can come back slightly off when the LP is degenerate (common once
+        # the restricted game has many near-equivalent strategies), so the result is
+        # checked. A failed check falls through to solving the column LP exactly -
+        # slower, never wrong. It must not raise: this runs inside long solves.
         q = -res.ineqlin.marginals
         q = np.clip(q, 0, None)
-        q = q / q.sum()
-        if (A @ q).max() > value + 1e-6:
-            raise RuntimeError("dual q is not optimal; rerun with use_dual=False")
-        return value, p, q
+        if q.sum() > 0:
+            q = q / q.sum()
+            # Scale the tolerance to the size of the payoffs, not an absolute 1e-6.
+            slack = 1e-6 * max(1.0, abs(value), float(np.abs(A).max()))
+            if (A @ q).max() <= value + slack:
+                return value, p, q
 
     #P2
     c = np.append(np.zeros(n), 1)
