@@ -187,3 +187,29 @@ parameters, so small games are just different `GameConfig`s.
   - 57 tests pass: matches brute force on 3-, 4- and 5-tower games for all three
     weight settings, against both pure and mixed opponents, and beats 200 random
     allocations at full size.
+- **Stage 5 (double oracle), 2026-09-22.** The loop solves the restricted game by
+  LP, asks each oracle for a best response to the opponent's restricted mix,
+  records the bounds, and adds any strategy that is new. The restricted payoff
+  matrix grows by one row and one column per iteration rather than being
+  rebuilt. Written generically over (payoff_fn, row_oracle, col_oracle), so it
+  was validated on random matrix games against the full LP before Blotto was
+  attached (D6). Full suite: 125 tests pass, including double oracle reproducing
+  the stage-3 ground-truth values on the 3- and 4-tower games for both
+  objectives.
+- **Stage 6 (full run), 2026-09-22.** Units of 5 (20 units, ~10M allocations):
+  - margin: converged in 445 iterations to value 0.0000 (symmetry check passes
+    at full scale), support 179 allocations, ~2 minutes.
+  - security: converged in 205 iterations to value 35.998, support 53.
+  - **The discretization is the whole story.** Inside the units-of-5 game the
+    gap reaches 0, but replaying the same strategy at 1-soldier resolution
+    (`exploitability.py`) shows the opponent can hold the margin strategy to
+    **−18.57** and the security strategy to **30.71** (a 5.29-point drop). The
+    exploiting allocation is [1, 11, 11, 16, 6, 21, 26, 1, 6, 1]: one soldier
+    more than a multiple of 5 on almost every tower. A strategy that only ever
+    plays multiples of 5 loses nearly every tower to an opponent who adds a
+    single soldier, and the coarse game cannot see that move.
+  - Conclusion: the coarse result is an exact equilibrium of a *different*
+    game, and its reported gap of 0 is not evidence about the real game. The
+    honest number is the fine-grid one. Rerunning at units of 2 and 1.
+  - This is the strongest argument in the writeup: the convergence gap only
+    certifies you against deviations your model can represent.

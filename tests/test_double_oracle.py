@@ -75,3 +75,27 @@ def test_blotto_matches_ground_truth(cfg, objective):
     assert result.converged
     assert result.value == pytest.approx(truth.value, abs=TOL)
     assert_history_consistent(result)
+
+
+@pytest.mark.parametrize("shape", [(30, 50), (80, 40)])
+@pytest.mark.parametrize("seed", range(3))
+@pytest.mark.parametrize("prune,use_dual", [(True, False), (False, True), (True, True)])
+def test_speedups_do_not_change_the_answer(shape, seed, prune, use_dual):
+    # Pruning zero-weight strategies and reading q from the LP duals are performance
+    # options; they must reach the same value as the plain loop and the full LP.
+    A = np.random.default_rng(seed).normal(size=shape)
+    full_value, _, _ = solve_zero_sum(A)
+
+    result = run_on_matrix(A, prune=prune, use_dual=use_dual)
+
+    assert result.converged
+    assert result.value == pytest.approx(full_value, abs=TOL)
+    assert_history_consistent(result)
+
+
+@pytest.mark.parametrize("cfg", [TINY, FOUR], ids=["tiny", "four"])
+def test_blotto_speedups_match_ground_truth(cfg):
+    truth = solve_full_game(cfg, "margin")
+    result = blotto_double_oracle(cfg, "margin", tol=TOL, prune=True, use_dual=True)
+    assert result.converged
+    assert result.value == pytest.approx(truth.value, abs=TOL)

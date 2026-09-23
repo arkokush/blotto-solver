@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.optimize import linprog
 
-def solve_zero_sum(A: np.ndarray) -> tuple[float, np.ndarray, np.ndarray]:
+def solve_zero_sum(A: np.ndarray, use_dual: bool = False) -> tuple[float, np.ndarray, np.ndarray]:
     """Minimax solution of the zero-sum game with payoff matrix A.
 
     The row player picks a row and receives A[i, j]; the column player picks a
@@ -36,6 +36,17 @@ def solve_zero_sum(A: np.ndarray) -> tuple[float, np.ndarray, np.ndarray]:
         raise RuntimeError(f"row LP failed: {res.message}")
 
     p, value = res.x[:m], res.x[m]
+
+    if use_dual:
+        # The column player's LP is the dual of the row player's, so q is the vector
+        # of shadow prices on the column constraints. This halves the LP work, which
+        # matters once the restricted game has hundreds of strategies.
+        q = -res.ineqlin.marginals
+        q = np.clip(q, 0, None)
+        q = q / q.sum()
+        if (A @ q).max() > value + 1e-6:
+            raise RuntimeError("dual q is not optimal; rerun with use_dual=False")
+        return value, p, q
 
     #P2
     c = np.append(np.zeros(n), 1)
